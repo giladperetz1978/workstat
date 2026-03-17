@@ -3,10 +3,17 @@ export type WorkStatus = {
   projectName: string
   subProjectName: string
   topic: string
+  priority: 'low' | 'medium' | 'high'
+  riskLevel: 'green' | 'yellow' | 'red'
   progress: number
   completedWork: string
+  blockers: string
   nextStep: string
   nextStepAt: string
+  trrDate: string
+  trialPrepStart: string
+  trialPrepEnd: string
+  trialDate: string
   subProjectEta: string
   projectEta: string
   comments: string

@@ -86,6 +86,7 @@
 }
 
 .form-grid input,
+.form-grid select,
 .form-grid textarea,
 .form-grid button {
   font: inherit;
@@ -96,6 +97,7 @@
 }
 
 .form-grid input,
+.form-grid select,
 .form-grid button,
 .edit-btn {
   min-height: 44px;
@@ -120,6 +122,7 @@
 }
 
 .form-grid input:focus,
+.form-grid select:focus,
 .form-grid textarea:focus,
 .form-grid button:focus,
 .edit-btn:focus {
@@ -152,6 +155,20 @@
 .summary-card p {
   margin: 0.4rem 0 0;
   color: var(--ink-soft);
+}
+
+.metrics-grid {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.metric-card {
+  text-align: center;
+}
+
+.metric-value {
+  font-family: 'Changa', sans-serif;
+  font-size: 2rem;
+  color: var(--teal);
 }
 
 .projects-table-wrap {
@@ -218,6 +235,46 @@
   display: flex;
   align-items: center;
   gap: 0.45rem;
+}
+
+.meta-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.6rem;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.priority-high,
+.risk-red {
+  background: color-mix(in oklab, #bb3f2f 18%, white);
+  color: #8d281d;
+}
+
+.priority-medium,
+.risk-yellow {
+  background: color-mix(in oklab, var(--burnt) 20%, white);
+  color: var(--burnt-dark);
+}
+
+.priority-low,
+.risk-green {
+  background: color-mix(in oklab, var(--mint) 24%, white);
+  color: var(--teal);
+}
+
+.blockers-text {
+  border-right: 4px solid #d17a35;
+  padding-right: 0.6rem;
+  color: var(--burnt-dark);
 }
 
 .feed {
@@ -404,6 +461,10 @@
     width: 100%;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .meta-chips {
+    flex-direction: column;
   }
 
   .danger-btn {

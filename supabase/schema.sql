@@ -4,16 +4,31 @@
     project_name text,
     sub_project_name text,
     topic text,
+    priority text default 'medium',
+    risk_level text default 'green',
     progress integer not null default 0 check (progress >= 0 and progress <= 100),
     completed_work text,
+    blockers text,
     next_step text,
     next_step_at text,
+    trr_date text,
+    trial_prep_start text,
+    trial_prep_end text,
+    trial_date text,
     sub_project_eta text,
     project_eta text,
     comments text,
     updated_at bigint not null,
     updated_by text
     );
+
+    alter table public.work_statuses add column if not exists priority text default 'medium';
+    alter table public.work_statuses add column if not exists risk_level text default 'green';
+    alter table public.work_statuses add column if not exists blockers text;
+    alter table public.work_statuses add column if not exists trr_date text;
+    alter table public.work_statuses add column if not exists trial_prep_start text;
+    alter table public.work_statuses add column if not exists trial_prep_end text;
+    alter table public.work_statuses add column if not exists trial_date text;
 
     create index if not exists idx_work_statuses_updated_at
     on public.work_statuses (updated_at desc);

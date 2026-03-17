@@ -23,15 +23,32 @@ const initialForm: WorkStatusInput = {
   projectName: '',
   subProjectName: '',
   topic: '',
+  priority: 'medium',
+  riskLevel: 'green',
   progress: 0,
   completedWork: '',
+  blockers: '',
   nextStep: '',
   nextStepAt: '',
+  trrDate: '',
+  trialPrepStart: '',
+  trialPrepEnd: '',
+  trialDate: '',
   subProjectEta: '',
   projectEta: '',
   comments: '',
   updatedBy: currentUser,
 }
+
+const DAY_MS = 1000 * 60 * 60 * 24
+
+const parseDateValue = (value: string) => {
+  if (!value) return null
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? null : parsed.getTime()
+}
+
+const formatDateLabel = (value: string) => value || 'לא הוגדר'
 
 function App() {
   const [items, setItems] = useState<WorkStatus[]>([])
@@ -64,14 +81,55 @@ function App() {
           .map((row) => row.projectEta)
           .filter(Boolean)
           .sort()[0] || 'לא הוגדר'
+      const nextMilestone =
+        records
+          .flatMap((row) => [row.trrDate, row.trialPrepStart, row.trialPrepEnd, row.trialDate])
+          .filter(Boolean)
+          .sort()[0] || 'לא הוגדר'
+      const riskCount = records.filter((row) => row.riskLevel !== 'green').length
 
       return {
         name,
         avgProgress: Math.round(avgProgress),
         projectEta,
+        nextMilestone,
+        riskCount,
       }
     })
   }, [groupedByProject])
+
+  const portfolioMetrics = useMemo(() => {
+    const now = Date.now()
+    const inTwoWeeks = now + DAY_MS * 14
+
+    const overdueNextSteps = items.filter((item) => {
+      const timestamp = parseDateValue(item.nextStepAt)
+      return timestamp !== null && timestamp < now
+    }).length
+
+    const upcomingTrials = items.filter((item) => {
+      const timestamp = parseDateValue(item.trialDate)
+      return timestamp !== null && timestamp >= now && timestamp <= inTwoWeeks
+    }).length
+
+    const openRisks = items.filter(
+      (item) => item.riskLevel === 'red' || item.blockers.trim().length > 0,
+    ).length
+
+    const activePreparation = items.filter((item) => {
+      const start = parseDateValue(item.trialPrepStart)
+      const end = parseDateValue(item.trialPrepEnd)
+      if (start === null || end === null) return false
+      return start <= now && end >= now
+    }).length
+
+    return [
+      { label: 'צעדים באיחור', value: overdueNextSteps },
+      { label: 'ניסויים ב-14 יום', value: upcomingTrials },
+      { label: 'חסמים/סיכון גבוה', value: openRisks },
+      { label: 'בהכנה לניסוי', value: activePreparation },
+    ]
+  }, [items])
 
   const projectRows = useMemo(() => {
     return Object.entries(groupedByProject)
@@ -125,10 +183,17 @@ function App() {
       projectName: item.projectName,
       subProjectName: item.subProjectName,
       topic: item.topic,
+      priority: item.priority,
+      riskLevel: item.riskLevel,
       progress: item.progress,
       completedWork: item.completedWork,
+      blockers: item.blockers,
       nextStep: item.nextStep,
       nextStepAt: item.nextStepAt,
+      trrDate: item.trrDate,
+      trialPrepStart: item.trialPrepStart,
+      trialPrepEnd: item.trialPrepEnd,
+      trialDate: item.trialDate,
       subProjectEta: item.subProjectEta,
       projectEta: item.projectEta,
       comments: item.comments,
@@ -279,6 +344,32 @@ function App() {
               />
             </label>
             <label>
+              דחיפות
+              <select
+                value={form.priority}
+                onChange={(e) =>
+                  updateField('priority', e.target.value as WorkStatusInput['priority'])
+                }
+              >
+                <option value="low">נמוכה</option>
+                <option value="medium">בינונית</option>
+                <option value="high">גבוהה</option>
+              </select>
+            </label>
+            <label>
+              רמת סיכון
+              <select
+                value={form.riskLevel}
+                onChange={(e) =>
+                  updateField('riskLevel', e.target.value as WorkStatusInput['riskLevel'])
+                }
+              >
+                <option value="green">ירוק</option>
+                <option value="yellow">צהוב</option>
+                <option value="red">אדום</option>
+              </select>
+            </label>
+            <label>
               אחוז ביצוע
               <input
                 type="number"
@@ -297,6 +388,14 @@ function App() {
               />
             </label>
             <label className="wide">
+              חסמים וסיכונים
+              <textarea
+                value={form.blockers}
+                onChange={(e) => updateField('blockers', e.target.value)}
+                placeholder="מה מעכב את ההתקדמות?"
+              />
+            </label>
+            <label className="wide">
               מה המהלך הבא?
               <textarea
                 required
@@ -310,6 +409,38 @@ function App() {
                 type="datetime-local"
                 value={form.nextStepAt}
                 onChange={(e) => updateField('nextStepAt', e.target.value)}
+              />
+            </label>
+            <label>
+              תאריך TRR
+              <input
+                type="date"
+                value={form.trrDate}
+                onChange={(e) => updateField('trrDate', e.target.value)}
+              />
+            </label>
+            <label>
+              תחילת הכנה לניסוי
+              <input
+                type="date"
+                value={form.trialPrepStart}
+                onChange={(e) => updateField('trialPrepStart', e.target.value)}
+              />
+            </label>
+            <label>
+              סיום הכנה לניסוי
+              <input
+                type="date"
+                value={form.trialPrepEnd}
+                onChange={(e) => updateField('trialPrepEnd', e.target.value)}
+              />
+            </label>
+            <label>
+              תאריך הניסוי
+              <input
+                type="date"
+                value={form.trialDate}
+                onChange={(e) => updateField('trialDate', e.target.value)}
               />
             </label>
             <label>
@@ -359,6 +490,18 @@ function App() {
         </section>
 
         <section className="panel">
+          <h2>מדדי מעקב</h2>
+          <div className="summary-grid metrics-grid">
+            {portfolioMetrics.map((metric) => (
+              <article key={metric.label} className="summary-card metric-card">
+                <p className="metric-value">{metric.value}</p>
+                <p>{metric.label}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="panel">
           <h2>תמונת מצב לפי פרויקט</h2>
           <div className="summary-grid">
             {projectSummary.map((project) => (
@@ -366,6 +509,8 @@ function App() {
                 <h3>{project.name}</h3>
                 <p>ביצוע ממוצע: {project.avgProgress}%</p>
                 <p>צפי לסיום פרויקט: {project.projectEta}</p>
+                <p>אבן דרך קרובה: {project.nextMilestone}</p>
+                <p>תתי-פרויקטים בסיכון: {project.riskCount}</p>
               </article>
             ))}
           </div>
@@ -463,6 +608,14 @@ function App() {
                                                 עודכן: {new Date(item.updatedAt).toLocaleString('he-IL')}
                                               </span>
                                             </header>
+                                            <div className="meta-chips">
+                                              <span className={`chip priority-${item.priority}`}>
+                                                דחיפות: {item.priority === 'high' ? 'גבוהה' : item.priority === 'medium' ? 'בינונית' : 'נמוכה'}
+                                              </span>
+                                              <span className={`chip risk-${item.riskLevel}`}>
+                                                סיכון: {item.riskLevel === 'red' ? 'אדום' : item.riskLevel === 'yellow' ? 'צהוב' : 'ירוק'}
+                                              </span>
+                                            </div>
                                             <div className="progress">
                                               <div style={{ width: `${item.progress}%` }} />
                                             </div>
@@ -475,6 +628,27 @@ function App() {
                                             <p>
                                               <strong>מתי:</strong> {item.nextStepAt || 'לא הוגדר'}
                                             </p>
+                                            <p>
+                                              <strong>TRR:</strong> {formatDateLabel(item.trrDate)}
+                                            </p>
+                                            <p>
+                                              <strong>חלון הכנה לניסוי:</strong>{' '}
+                                              {formatDateLabel(item.trialPrepStart)} - {formatDateLabel(item.trialPrepEnd)}
+                                            </p>
+                                            <p>
+                                              <strong>תאריך ניסוי:</strong> {formatDateLabel(item.trialDate)}
+                                            </p>
+                                            <p>
+                                              <strong>צפי תת-פרויקט:</strong> {formatDateLabel(item.subProjectEta)}
+                                            </p>
+                                            <p>
+                                              <strong>צפי פרויקט:</strong> {formatDateLabel(item.projectEta)}
+                                            </p>
+                                            {item.blockers && (
+                                              <p className="blockers-text">
+                                                <strong>חסמים:</strong> {item.blockers}
+                                              </p>
+                                            )}
                                             {item.comments && (
                                               <p
                                                 style={{
