@@ -1,33 +1,54 @@
-﻿import { initializeApp, type FirebaseOptions } from 'firebase/app'
-import { getDatabase, onValue, ref, set } from 'firebase/database'
+﻿import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { type WorkStatus, type WorkStatusInput } from './types'
 
 const STORAGE_KEY = 'work-status-pwa-cache-v1'
 
-const firebaseConfig: FirebaseOptions = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+type WorkStatusRow = {
+  id: string
+  project_name: string | null
+  sub_project_name: string | null
+  topic: string | null
+  progress: number | null
+  completed_work: string | null
+  next_step: string | null
+  next_step_at: string | null
+  sub_project_eta: string | null
+  project_eta: string | null
+  comments: string | null
+  updated_at: number | null
+  updated_by: string | null
 }
 
+type WorkStatusLike = {
+  id: string
+  projectName?: string | null
+  subProjectName?: string | null
+  topic?: string | null
+  progress?: number | null
+  completedWork?: string | null
+  nextStep?: string | null
+  nextStepAt?: string | null
+  subProjectEta?: string | null
+  projectEta?: string | null
+  comments?: string | null
+  updatedAt?: number | null
+  updatedBy?: string | null
+}
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
 const requiredEnvKeys = [
-  'VITE_FIREBASE_API_KEY',
-  'VITE_FIREBASE_PROJECT_ID',
-  'VITE_FIREBASE_DATABASE_URL',
+  'VITE_SUPABASE_URL',
+  'VITE_SUPABASE_ANON_KEY',
 ] as const
 
 const missingEnvKeys = requiredEnvKeys.filter((key) => !import.meta.env[key])
 
-const hasFirebaseConfig = Boolean(
-  firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.databaseURL,
-)
+const hasSupabaseConfig = Boolean(supabaseUrl && supabaseAnonKey)
 
 export const realtimeDisabledReason =
-  !hasFirebaseConfig
+  !hasSupabaseConfig
     ? `חסרים משתני סביבה: ${missingEnvKeys.join(', ')}`
     : ''
 
@@ -90,20 +111,36 @@ const toDateTimeLocalInput = (value: unknown): string => {
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 
-const normalize = (item: Partial<WorkStatus> & { id: string }): WorkStatus => ({
+const normalize = (item: WorkStatusLike & Partial<WorkStatusRow>): WorkStatus => ({
   id: item.id,
-  projectName: item.projectName ?? 'ללא שם פרויקט',
-  subProjectName: item.subProjectName ?? 'ללא שם תת-פרויקט',
+  projectName: item.projectName ?? item.project_name ?? 'ללא שם פרויקט',
+  subProjectName: item.subProjectName ?? item.sub_project_name ?? 'ללא שם תת-פרויקט',
   topic: item.topic ?? '',
   progress: Math.max(0, Math.min(100, Number(item.progress ?? 0))),
-  completedWork: item.completedWork ?? '',
-  nextStep: item.nextStep ?? '',
-  nextStepAt: toDateTimeLocalInput(item.nextStepAt),
-  subProjectEta: toDateInput(item.subProjectEta),
-  projectEta: toDateInput(item.projectEta),
+  completedWork: item.completedWork ?? item.completed_work ?? '',
+  nextStep: item.nextStep ?? item.next_step ?? '',
+  nextStepAt: toDateTimeLocalInput(item.nextStepAt ?? item.next_step_at),
+  subProjectEta: toDateInput(item.subProjectEta ?? item.sub_project_eta),
+  projectEta: toDateInput(item.projectEta ?? item.project_eta),
   comments: item.comments ?? '',
-  updatedAt: Number(item.updatedAt ?? Date.now()),
-  updatedBy: item.updatedBy ?? 'Unknown',
+  updatedAt: Number(item.updatedAt ?? item.updated_at ?? Date.now()),
+  updatedBy: item.updatedBy ?? item.updated_by ?? 'Unknown',
+})
+
+const toRow = (item: WorkStatus): WorkStatusRow => ({
+  id: item.id,
+  project_name: item.projectName,
+  sub_project_name: item.subProjectName,
+  topic: item.topic,
+  progress: item.progress,
+  completed_work: item.completedWork,
+  next_step: item.nextStep,
+  next_step_at: item.nextStepAt || null,
+  sub_project_eta: item.subProjectEta || null,
+  project_eta: item.projectEta || null,
+  comments: item.comments || null,
+  updated_at: item.updatedAt,
+  updated_by: item.updatedBy,
 })
 
 const readLocal = (): WorkStatus[] => {
@@ -130,50 +167,64 @@ const saveLocal = (items: WorkStatus[]) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(sortByUpdate(items)))
 }
 
-let db = null as ReturnType<typeof getDatabase> | null
+let supabase: SupabaseClient | null = null
 
-if (hasFirebaseConfig) {
-  const app = initializeApp(firebaseConfig)
-  db = getDatabase(app)
+if (hasSupabaseConfig) {
+  supabase = createClient(supabaseUrl!, supabaseAnonKey!, {
+    auth: { persistSession: false },
+  })
 }
 
-export const isRealtimeEnabled = hasFirebaseConfig
+export const isRealtimeEnabled = hasSupabaseConfig
 
 export const subscribeStatuses = (onData: (items: WorkStatus[]) => void) => {
   const local = readLocal()
   onData(local)
 
-  if (!db) {
+  if (!supabase) {
     return () => {
       onData(readLocal())
     }
   }
 
-  const statusesRef = ref(db, 'workStatuses')
+  const syncFromRemote = async () => {
+    if (!supabase) return
 
-  return onValue(
-    statusesRef,
-    (snapshot) => {
-      const value = snapshot.val() as Record<string, Partial<WorkStatus>> | null
+    const { data, error } = await supabase
+      .from('work_statuses')
+      .select('*')
+      .order('updated_at', { ascending: false })
 
-      if (!value || Object.keys(value).length === 0) {
-        return
-      }
-
-      const remote = Object.entries(value).map(([id, data]) =>
-        normalize({
-          id,
-          ...data,
-        }),
-      )
-
-      saveLocal(remote)
-      onData(sortByUpdate(remote))
-    },
-    () => {
+    if (error || !data || data.length === 0) {
       onData(readLocal())
-    },
-  )
+      return
+    }
+
+    const remote = data.map((row) => normalize(row as WorkStatusLike & WorkStatusRow))
+    saveLocal(remote)
+    onData(sortByUpdate(remote))
+  }
+
+  void syncFromRemote()
+
+  const channel = supabase
+    .channel('work-statuses-feed')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'work_statuses' },
+      () => {
+        void syncFromRemote()
+      },
+    )
+    .subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        void syncFromRemote()
+      }
+    })
+
+  return () => {
+    void supabase?.removeChannel(channel)
+  }
 }
 
 export const upsertStatus = async (input: WorkStatusInput, id?: string) => {
@@ -196,8 +247,14 @@ export const upsertStatus = async (input: WorkStatusInput, id?: string) => {
   const next = [record, ...current.filter((item) => item.id !== record.id)]
   saveLocal(next)
 
-  if (!db) return
+  if (!supabase) return
 
-  await set(ref(db, `workStatuses/${record.id}`), record)
+  const { error } = await supabase
+    .from('work_statuses')
+    .upsert(toRow(record), { onConflict: 'id' })
+
+  if (error) {
+    console.error('Supabase upsert failed', error.message)
+  }
 }
 

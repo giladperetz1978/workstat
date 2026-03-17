@@ -2,7 +2,7 @@
 
 מערכת עדכון סטטוס עבודה לפרויקטים ותתי-פרויקטים, עם תמיכה ב:
 
-- עדכון בזמן אמת בין משתמשים (Firebase Firestore)
+- עדכון בזמן אמת בין משתמשים (Supabase Realtime)
 - עבודה אופליין עם מאגר DATA מקומי (localStorage + cache של PWA)
 - ממשק מותאם גם למחשב וגם לטלפון
 
@@ -26,25 +26,26 @@ npm run dev
 npm run build
 ```
 
-## חייב Firebase?
+## חייב Supabase?
 
-לא. Firebase הוא רק פתרון אחד.
+לא. Supabase הוא רק פתרון אחד.
 
-- בלי Firebase ובלי backend אחר: האפליקציה עובדת מקומית בלבד בכל מכשיר בנפרד.
-- עם Firebase או backend אחר: יש סנכרון LIVE בין כל המשתמשים.
+- בלי Supabase ובלי backend אחר: האפליקציה עובדת מקומית בלבד בכל מכשיר בנפרד.
+- עם Supabase או backend אחר: יש סנכרון LIVE בין כל המשתמשים.
 
-ב-GitHub Pages האתר הוא סטטי, לכן סנכרון בין משתמשים מחייב שירות חיצוני (כמו Firebase, Supabase, Appwrite או שרת API משלך).
+ב-GitHub Pages האתר הוא סטטי, לכן סנכרון בין משתמשים מחייב שירות חיצוני (כמו Supabase, Firebase, Appwrite או שרת API משלך).
 
-## סנכרון עם Firebase (אופציונלי)
+## סנכרון עם Supabase (אופציונלי)
 
 כדי לקבל סנכרון LIVE בין כל המשתמשים ב-PWA:
 
-1. צור פרויקט Firebase.
-2. הפעל Firestore.
-3. העתק את `.env.example` ל-`.env`.
-4. מלא את כל ערכי `VITE_FIREBASE_*`.
+1. צור פרויקט Supabase.
+2. הרץ את הסקריפט `supabase/schema.sql` בתוך SQL Editor ב-Supabase.
+3. הפעל Realtime עבור הטבלה `work_statuses`.
+4. העתק את `.env.example` ל-`.env`.
+5. מלא את הערכים `VITE_SUPABASE_URL` ו-`VITE_SUPABASE_ANON_KEY`.
 
-אם לא מוגדרים משתני Firebase, האפליקציה עובדת במצב מקומי בלבד.
+אם לא מוגדרים משתני Supabase, האפליקציה עובדת במצב מקומי בלבד.
 
 ## פריסה ל-GitHub Pages (הריפו workstat)
 

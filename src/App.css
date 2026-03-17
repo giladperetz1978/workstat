@@ -1,6 +1,7 @@
 .shell {
   width: min(1200px, 100% - 2rem);
   margin: 1rem auto 2rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
   animation: fade-in 500ms ease;
 }
 
@@ -94,6 +95,12 @@
   padding: 0.65rem;
 }
 
+.form-grid input,
+.form-grid button,
+.edit-btn {
+  min-height: 44px;
+}
+
 .form-grid textarea {
   min-height: 88px;
   resize: vertical;
@@ -110,6 +117,14 @@
   color: #fff;
   font-weight: 700;
   cursor: pointer;
+}
+
+.form-grid input:focus,
+.form-grid textarea:focus,
+.form-grid button:focus,
+.edit-btn:focus {
+  outline: 3px solid color-mix(in oklab, var(--mint) 50%, white);
+  outline-offset: 1px;
 }
 
 .form-grid .cancel-btn {
@@ -228,11 +243,50 @@
 }
 
 @media (max-width: 620px) {
+  .shell {
+    width: min(100% - 1rem, 1200px);
+    margin-top: 0.6rem;
+  }
+
+  .panel {
+    border-radius: 16px;
+    padding: 0.85rem;
+  }
+
+  .topbar h1 {
+    line-height: 1.08;
+  }
+
   .form-grid {
     grid-template-columns: 1fr;
+    gap: 0.7rem;
   }
 
   .topbar {
     flex-direction: column;
+  }
+
+  .sync {
+    align-self: stretch;
+    text-align: center;
+    width: 100%;
+  }
+
+  .status-card {
+    padding: 0.8rem;
+  }
+
+  .status-card header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .status-card footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .edit-btn {
+    width: 100%;
   }
 }
