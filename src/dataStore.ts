@@ -258,3 +258,34 @@ export const upsertStatus = async (input: WorkStatusInput, id?: string) => {
   }
 }
 
+export const deleteStatus = async (id: string) => {
+  const current = readLocal()
+  const next = current.filter((item) => item.id !== id)
+  saveLocal(next)
+
+  if (!supabase) return
+
+  const { error } = await supabase.from('work_statuses').delete().eq('id', id)
+
+  if (error) {
+    console.error('Supabase delete status failed', error.message)
+  }
+}
+
+export const deleteProject = async (projectName: string) => {
+  const current = readLocal()
+  const next = current.filter((item) => item.projectName !== projectName)
+  saveLocal(next)
+
+  if (!supabase) return
+
+  const { error } = await supabase
+    .from('work_statuses')
+    .delete()
+    .eq('project_name', projectName)
+
+  if (error) {
+    console.error('Supabase delete project failed', error.message)
+  }
+}
+

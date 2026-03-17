@@ -1,5 +1,7 @@
-﻿import { useEffect, useMemo, useState } from 'react'
+﻿import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
+  deleteProject,
+  deleteStatus,
   isRealtimeEnabled,
   realtimeDisabledReason,
   subscribeStatuses,
@@ -34,7 +36,10 @@ function App() {
   const [items, setItems] = useState<WorkStatus[]>([])
   const [form, setForm] = useState<WorkStatusInput>(initialForm)
   const [isSaving, setIsSaving] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [openProject, setOpenProject] = useState<string | null>(null)
+  const [openSubProjectKey, setOpenSubProjectKey] = useState<string | null>(null)
 
   useEffect(() => {
     return subscribeStatuses(setItems)
@@ -67,6 +72,39 @@ function App() {
     })
   }, [groupedByProject])
 
+  const projectRows = useMemo(() => {
+    return Object.entries(groupedByProject)
+      .map(([name, records]) => {
+        const subProjects = Object.entries(
+          records.reduce<Record<string, WorkStatus[]>>((acc, row) => {
+            if (!acc[row.subProjectName]) acc[row.subProjectName] = []
+            acc[row.subProjectName].push(row)
+            return acc
+          }, {}),
+        )
+          .map(([subProjectName, subRecords]) => ({
+            subProjectName,
+            records: [...subRecords].sort((a, b) => b.updatedAt - a.updatedAt),
+            avgProgress: Math.round(
+              subRecords.reduce((sum, row) => sum + row.progress, 0) / subRecords.length,
+            ),
+            lastUpdated: Math.max(...subRecords.map((row) => row.updatedAt)),
+          }))
+          .sort((a, b) => b.lastUpdated - a.lastUpdated)
+
+        return {
+          name,
+          totalRows: records.length,
+          subProjects,
+        }
+      })
+      .sort((a, b) => {
+        const aLast = Math.max(...a.subProjects.map((row) => row.lastUpdated))
+        const bLast = Math.max(...b.subProjects.map((row) => row.lastUpdated))
+        return bLast - aLast
+      })
+  }, [groupedByProject])
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     setIsSaving(true)
@@ -96,6 +134,56 @@ function App() {
       updatedBy: currentUser,
     })
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const toggleProject = (projectName: string) => {
+    setOpenProject((prev) => {
+      const next = prev === projectName ? null : projectName
+      if (next !== projectName) {
+        setOpenSubProjectKey(null)
+      }
+      return next
+    })
+  }
+
+  const toggleSubProject = (projectName: string, subProjectName: string) => {
+    const key = `${projectName}__${subProjectName}`
+    setOpenSubProjectKey((prev) => (prev === key ? null : key))
+  }
+
+  const removeProject = async (projectName: string) => {
+    const approved = window.confirm(`למחוק את כל העדכונים של הפרויקט "${projectName}"?`)
+    if (!approved) return
+
+    setIsDeleting(true)
+    try {
+      await deleteProject(projectName)
+      setOpenProject((prev) => (prev === projectName ? null : prev))
+      setOpenSubProjectKey(null)
+      if (
+        editingId &&
+        items.some((item) => item.id === editingId && item.projectName === projectName)
+      ) {
+        cancelEdit()
+      }
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const removeStatus = async (item: WorkStatus) => {
+    const approved = window.confirm('למחוק את העדכון הזה?')
+    if (!approved) return
+
+    setIsDeleting(true)
+    try {
+      await deleteStatus(item.id)
+      if (editingId === item.id) {
+        cancelEdit()
+      }
+    } finally {
+      setIsDeleting(false)
+    }
   }
 
   const cancelEdit = () => {
@@ -247,50 +335,140 @@ function App() {
         </section>
 
         <section className="panel">
-          <h2>פיד עדכונים</h2>
-          <div className="feed">
-            {items.map((item) => (
-              <article key={item.id} className="status-card">
-                <header>
-                  <h3>
-                    {item.projectName} / {item.subProjectName}
-                  </h3>
-                  <span>{item.topic}</span>
-                </header>
-                <div className="progress">
-                  <div style={{ width: `${item.progress}%` }} />
-                </div>
-                <p>
-                  <strong>בוצע:</strong> {item.completedWork}
-                </p>
-                <p>
-                  <strong>המהלך הבא:</strong> {item.nextStep}
-                </p>
-                <p>
-                  <strong>מתי:</strong> {item.nextStepAt || 'לא הוגדר'}
-                </p>
-                <p>
-                  <strong>צפי תת פרויקט:</strong> {item.subProjectEta || 'לא הוגדר'}
-                </p>
-                <p>
-                  <strong>צפי פרויקט:</strong> {item.projectEta || 'לא הוגדר'}
-                </p>
-                {item.comments && (
-                  <p style={{ fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
-                    <strong>הערות:</strong> {item.comments}
-                  </p>
-                )}
-                <footer>
-                  <span>
-                    עודכן על ידי {item.updatedBy} ב-
-                    {new Date(item.updatedAt).toLocaleString('he-IL')}
-                  </span>
-                  <button type="button" className="edit-btn" onClick={() => startEdit(item)}>
-                    עריכה
-                  </button>
-                </footer>
-              </article>
-            ))}
+          <h2>טבלת פרויקטים ותתי-פרויקטים</h2>
+          <div className="projects-table-wrap">
+            <table className="projects-table">
+              <thead>
+                <tr>
+                  <th>פרויקט</th>
+                  <th>תתי פרויקטים</th>
+                  <th>עדכונים</th>
+                  <th>פעולות</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projectRows.map((project) => {
+                  const isProjectOpen = openProject === project.name
+                  return (
+                    <Fragment key={project.name}>
+                      <tr key={project.name}>
+                        <td>
+                          <button
+                            type="button"
+                            className="row-toggle"
+                            onClick={() => toggleProject(project.name)}
+                          >
+                            {isProjectOpen ? '▼' : '▶'} {project.name}
+                          </button>
+                        </td>
+                        <td>{project.subProjects.length}</td>
+                        <td>{project.totalRows}</td>
+                        <td>
+                          <button
+                            type="button"
+                            className="danger-btn"
+                            disabled={isDeleting}
+                            onClick={() => removeProject(project.name)}
+                          >
+                            מחיקת פרויקט
+                          </button>
+                        </td>
+                      </tr>
+
+                      {isProjectOpen && (
+                        <tr key={`${project.name}-subs`}>
+                          <td colSpan={4}>
+                            <div className="subproject-list">
+                              {project.subProjects.map((subProject) => {
+                                const subKey = `${project.name}__${subProject.subProjectName}`
+                                const isSubOpen = openSubProjectKey === subKey
+
+                                return (
+                                  <article key={subKey} className="subproject-card">
+                                    <button
+                                      type="button"
+                                      className="subproject-toggle"
+                                      onClick={() =>
+                                        toggleSubProject(project.name, subProject.subProjectName)
+                                      }
+                                    >
+                                      <span>
+                                        {isSubOpen ? '▼' : '▶'} {subProject.subProjectName}
+                                      </span>
+                                      <span>
+                                        {subProject.records.length} עדכונים | {subProject.avgProgress}%
+                                      </span>
+                                    </button>
+
+                                    {isSubOpen && (
+                                      <div className="feed">
+                                        {subProject.records.map((item) => (
+                                          <article key={item.id} className="status-card">
+                                            <header>
+                                              <h3>{item.topic}</h3>
+                                              <span>
+                                                עודכן: {new Date(item.updatedAt).toLocaleString('he-IL')}
+                                              </span>
+                                            </header>
+                                            <div className="progress">
+                                              <div style={{ width: `${item.progress}%` }} />
+                                            </div>
+                                            <p>
+                                              <strong>בוצע:</strong> {item.completedWork}
+                                            </p>
+                                            <p>
+                                              <strong>המהלך הבא:</strong> {item.nextStep}
+                                            </p>
+                                            <p>
+                                              <strong>מתי:</strong> {item.nextStepAt || 'לא הוגדר'}
+                                            </p>
+                                            {item.comments && (
+                                              <p
+                                                style={{
+                                                  fontSize: '0.9rem',
+                                                  fontStyle: 'italic',
+                                                  color: 'var(--ink-soft)',
+                                                }}
+                                              >
+                                                <strong>הערות:</strong> {item.comments}
+                                              </p>
+                                            )}
+                                            <footer>
+                                              <span>מעדכן: {item.updatedBy}</span>
+                                              <div className="status-actions">
+                                                <button
+                                                  type="button"
+                                                  className="edit-btn"
+                                                  onClick={() => startEdit(item)}
+                                                >
+                                                  עריכה
+                                                </button>
+                                                <button
+                                                  type="button"
+                                                  className="danger-btn"
+                                                  disabled={isDeleting}
+                                                  onClick={() => removeStatus(item)}
+                                                >
+                                                  מחיקה
+                                                </button>
+                                              </div>
+                                            </footer>
+                                          </article>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </article>
+                                )
+                              })}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </section>
       </main>

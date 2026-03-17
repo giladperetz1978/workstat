@@ -154,6 +154,66 @@
   color: var(--ink-soft);
 }
 
+.projects-table-wrap {
+  overflow-x: auto;
+}
+
+.projects-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 560px;
+}
+
+.projects-table th,
+.projects-table td {
+  padding: 0.6rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--teal) 14%, white);
+  text-align: right;
+  vertical-align: top;
+}
+
+.row-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+}
+
+.subproject-list {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.subproject-card {
+  border: 1px solid color-mix(in oklab, var(--teal) 20%, white);
+  border-radius: 12px;
+  background: #fff;
+  padding: 0.5rem;
+}
+
+.subproject-toggle {
+  width: 100%;
+  border: 0;
+  background: color-mix(in oklab, var(--mint) 20%, white);
+  border-radius: 10px;
+  padding: 0.6rem;
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.status-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
 .feed {
   display: grid;
   gap: 0.8rem;
@@ -200,9 +260,19 @@
 .edit-btn {
   border: 0;
   border-radius: 10px;
-  padding: 0.25rem 0.65rem;
+  padding: 0.4rem 0.7rem;
   background: color-mix(in oklab, var(--mint) 45%, white);
   color: var(--teal);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.danger-btn {
+  border: 1px solid color-mix(in oklab, #b23b31 35%, white);
+  border-radius: 10px;
+  padding: 0.4rem 0.7rem;
+  background: color-mix(in oklab, #b23b31 14%, white);
+  color: #81231c;
   font-weight: 700;
   cursor: pointer;
 }
@@ -272,6 +342,40 @@
     width: 100%;
   }
 
+  .projects-table {
+    min-width: 0;
+  }
+
+  .projects-table thead {
+    display: none;
+  }
+
+  .projects-table,
+  .projects-table tbody,
+  .projects-table tr,
+  .projects-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .projects-table tr {
+    border: 1px solid color-mix(in oklab, var(--teal) 14%, white);
+    border-radius: 12px;
+    margin-bottom: 0.65rem;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  .projects-table td {
+    border-bottom: 0;
+    padding: 0.55rem 0.65rem;
+  }
+
+  .subproject-toggle {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
   .status-card {
     padding: 0.8rem;
   }
@@ -287,6 +391,16 @@
   }
 
   .edit-btn {
+    width: 100%;
+  }
+
+  .status-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .danger-btn {
     width: 100%;
   }
 }
