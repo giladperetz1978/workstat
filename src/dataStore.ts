@@ -14,9 +14,20 @@ const firebaseConfig: FirebaseOptions = {
   databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
 }
 
+const requiredEnvKeys = [
+  'VITE_FIREBASE_API_KEY',
+  'VITE_FIREBASE_PROJECT_ID',
+  'VITE_FIREBASE_DATABASE_URL',
+] as const
+
+const missingEnvKeys = requiredEnvKeys.filter((key) => !import.meta.env[key])
+
 const hasFirebaseConfig = Boolean(
   firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.databaseURL,
 )
+
+export const realtimeDisabledReason =
+  missingEnvKeys.length > 0 ? `חסרים משתני סביבה: ${missingEnvKeys.join(', ')}` : ''
 
 const defaultSeed: WorkStatus[] = [
   {

@@ -1,5 +1,10 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
-import { isRealtimeEnabled, subscribeStatuses, upsertStatus } from './dataStore'
+import {
+  isRealtimeEnabled,
+  realtimeDisabledReason,
+  subscribeStatuses,
+  upsertStatus,
+} from './dataStore'
 import { type WorkStatus, type WorkStatusInput } from './types'
 import './App.css'
 
@@ -111,6 +116,9 @@ function App() {
         <div>
           <h1>Work Pulse</h1>
           <p>מערכת עדכון סטטוס פרויקטים בזמן אמת</p>
+          {!isRealtimeEnabled && realtimeDisabledReason && (
+            <p className="sync-help">{realtimeDisabledReason}</p>
+          )}
         </div>
         <span className={`sync ${isRealtimeEnabled ? 'live' : 'local'}`}>
           {isRealtimeEnabled ? 'סנכרון LIVE' : 'מצב מקומי בלבד'}
