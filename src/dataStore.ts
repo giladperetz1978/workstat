@@ -63,6 +63,44 @@ const defaultSeed: WorkStatus[] = [
 const sortByUpdate = (items: WorkStatus[]) =>
   [...items].sort((a, b) => b.updatedAt - a.updatedAt)
 
+const pad2 = (value: number) => value.toString().padStart(2, '0')
+
+const toDateInput = (value: unknown): string => {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  const raw = value.trim()
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return raw
+  }
+
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return ''
+
+  const year = parsed.getFullYear()
+  const month = pad2(parsed.getMonth() + 1)
+  const day = pad2(parsed.getDate())
+  return `${year}-${month}-${day}`
+}
+
+const toDateTimeLocalInput = (value: unknown): string => {
+  if (typeof value !== 'string' || !value.trim()) return ''
+  const raw = value.trim()
+
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(raw)) {
+    return raw
+  }
+
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return ''
+
+  const year = parsed.getFullYear()
+  const month = pad2(parsed.getMonth() + 1)
+  const day = pad2(parsed.getDate())
+  const hours = pad2(parsed.getHours())
+  const minutes = pad2(parsed.getMinutes())
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
+
 const normalize = (item: Partial<WorkStatus> & { id: string }): WorkStatus => ({
   id: item.id,
   projectName: item.projectName ?? 'ללא שם פרויקט',
@@ -71,9 +109,9 @@ const normalize = (item: Partial<WorkStatus> & { id: string }): WorkStatus => ({
   progress: Math.max(0, Math.min(100, Number(item.progress ?? 0))),
   completedWork: item.completedWork ?? '',
   nextStep: item.nextStep ?? '',
-  nextStepAt: item.nextStepAt ?? '',
-  subProjectEta: item.subProjectEta ?? '',
-  projectEta: item.projectEta ?? '',
+  nextStepAt: toDateTimeLocalInput(item.nextStepAt),
+  subProjectEta: toDateInput(item.subProjectEta),
+  projectEta: toDateInput(item.projectEta),
   comments: item.comments ?? '',
   updatedAt: Number(item.updatedAt ?? Date.now()),
   updatedBy: item.updatedBy ?? 'Unknown',
@@ -151,8 +189,16 @@ export const subscribeStatuses = (onData: (items: WorkStatus[]) => void) => {
 
 export const upsertStatus = async (input: WorkStatusInput, id?: string) => {
   const recordId = id ?? crypto.randomUUID()
-  const record: WorkStatus = {
+
+  const sanitizedInput: WorkStatusInput = {
     ...input,
+    nextStepAt: toDateTimeLocalInput(input.nextStepAt),
+    subProjectEta: toDateInput(input.subProjectEta),
+    projectEta: toDateInput(input.projectEta),
+  }
+
+  const record: WorkStatus = {
+    ...sanitizedInput,
     id: recordId,
     updatedAt: Date.now(),
   }
