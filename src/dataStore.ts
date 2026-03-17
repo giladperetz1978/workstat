@@ -38,7 +38,7 @@ const hasFirebaseConfig = Boolean(
 )
 
 export const realtimeDisabledReason =
-  missingEnvKeys.length > 0
+  !hasFirebaseConfig
     ? `חסרים משתני סביבה: ${missingEnvKeys.join(', ')} (נעשה שימוש בערכי Firebase מובנים)`
     : ''
 
