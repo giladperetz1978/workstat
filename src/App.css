@@ -106,6 +106,12 @@
   cursor: pointer;
 }
 
+.form-grid .cancel-btn {
+  background: #fff;
+  color: var(--burnt-dark);
+  border: 1px solid color-mix(in oklab, var(--burnt) 35%, white);
+}
+
 .summary-grid {
   display: grid;
   gap: 0.7rem;
@@ -161,9 +167,23 @@
 }
 
 .status-card footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   margin-top: 0.5rem;
   color: var(--ink-soft);
   font-size: 0.82rem;
+}
+
+.edit-btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.25rem 0.65rem;
+  background: color-mix(in oklab, var(--mint) 45%, white);
+  color: var(--teal);
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .progress {

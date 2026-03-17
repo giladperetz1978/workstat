@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { isRealtimeEnabled, subscribeStatuses, upsertStatus } from './dataStore'
 import { type WorkStatus, type WorkStatusInput } from './types'
 import './App.css'
@@ -21,6 +21,7 @@ const initialForm: WorkStatusInput = {
   nextStepAt: '',
   subProjectEta: '',
   projectEta: '',
+  comments: '',
   updatedBy: currentUser,
 }
 
@@ -28,6 +29,7 @@ function App() {
   const [items, setItems] = useState<WorkStatus[]>([])
   const [form, setForm] = useState<WorkStatusInput>(initialForm)
   const [isSaving, setIsSaving] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   useEffect(() => {
     return subscribeStatuses(setItems)
@@ -65,11 +67,35 @@ function App() {
     setIsSaving(true)
 
     try {
-      await upsertStatus(form)
+      await upsertStatus(form, editingId ?? undefined)
       setForm({ ...initialForm, updatedBy: currentUser })
+      setEditingId(null)
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const startEdit = (item: WorkStatus) => {
+    setEditingId(item.id)
+    setForm({
+      projectName: item.projectName,
+      subProjectName: item.subProjectName,
+      topic: item.topic,
+      progress: item.progress,
+      completedWork: item.completedWork,
+      nextStep: item.nextStep,
+      nextStepAt: item.nextStepAt,
+      subProjectEta: item.subProjectEta,
+      projectEta: item.projectEta,
+      comments: item.comments,
+      updatedBy: currentUser,
+    })
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const cancelEdit = () => {
+    setEditingId(null)
+    setForm({ ...initialForm, updatedBy: currentUser })
   }
 
   const updateField = <K extends keyof WorkStatusInput>(
@@ -93,7 +119,7 @@ function App() {
 
       <main className="layout">
         <section className="panel form-panel">
-          <h2>עדכון מהיר</h2>
+          <h2>{editingId ? 'עריכת עדכון קיים' : 'עדכון מהיר'}</h2>
           <form onSubmit={submit} className="form-grid">
             <label>
               פרויקט
@@ -176,9 +202,26 @@ function App() {
                 onChange={(e) => updateField('updatedBy', e.target.value)}
               />
             </label>
+            <label className="wide">
+              הערות
+              <textarea
+                value={form.comments}
+                onChange={(e) => updateField('comments', e.target.value)}
+                placeholder="הערות חופשיות"
+              />
+            </label>
             <button disabled={isSaving} type="submit">
-              {isSaving ? 'שומר...' : 'שמירת עדכון'}
+              {isSaving
+                ? 'שומר...'
+                : editingId
+                  ? 'שמירת שינויים'
+                  : 'שמירת עדכון'}
             </button>
+            {editingId && (
+              <button type="button" onClick={cancelEdit} className="cancel-btn">
+                ביטול עריכה
+              </button>
+            )}
           </form>
         </section>
 
@@ -224,9 +267,19 @@ function App() {
                 <p>
                   <strong>צפי פרויקט:</strong> {item.projectEta || 'לא הוגדר'}
                 </p>
+                {item.comments && (
+                  <p style={{ fontSize: '0.9rem', fontStyle: 'italic', color: 'var(--ink-soft)' }}>
+                    <strong>הערות:</strong> {item.comments}
+                  </p>
+                )}
                 <footer>
-                  עודכן על ידי {item.updatedBy} ב-
-                  {new Date(item.updatedAt).toLocaleString('he-IL')}
+                  <span>
+                    עודכן על ידי {item.updatedBy} ב-
+                    {new Date(item.updatedAt).toLocaleString('he-IL')}
+                  </span>
+                  <button type="button" className="edit-btn" onClick={() => startEdit(item)}>
+                    עריכה
+                  </button>
                 </footer>
               </article>
             ))}
@@ -238,3 +291,4 @@ function App() {
 }
 
 export default App
+

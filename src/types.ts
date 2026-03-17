@@ -9,6 +9,7 @@ export type WorkStatus = {
   nextStepAt: string
   subProjectEta: string
   projectEta: string
+  comments: string
   updatedAt: number
   updatedBy: string
 }
