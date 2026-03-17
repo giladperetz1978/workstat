@@ -1,0 +1,19 @@
+{
+  "name": "Work Pulse",
+  "short_name": "WorkPulse",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f4efe5",
+  "theme_color": "#09302c",
+  "description": "מערכת עדכון סטטוס עבודה עם סנכרון בזמן אמת",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
