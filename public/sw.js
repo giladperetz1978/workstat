@@ -1,4 +1,4 @@
-const APP_CACHE = 'work-pulse-cache-v1'
+const APP_CACHE = 'work-pulse-cache-v2'
 
 const getBase = () => {
   const scopeUrl = new URL(self.registration.scope)
@@ -29,17 +29,27 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached
+  const requestUrl = new URL(event.request.url)
+  if (requestUrl.origin !== self.location.origin) {
+    event.respondWith(fetch(event.request))
+    return
+  }
 
-      return fetch(event.request)
-        .then((response) => {
+  event.respondWith(
+    fetch(event.request)
+      .then((response) => {
+        if (response && response.status === 200) {
           const copy = response.clone()
           caches.open(APP_CACHE).then((cache) => cache.put(event.request, copy))
-          return response
-        })
-        .catch(() => caches.match(`${BASE}index.html`))
-    }),
+        }
+
+        return response
+      })
+      .catch(() =>
+        caches.match(event.request).then((cached) => {
+          if (cached) return cached
+          return caches.match(`${BASE}index.html`)
+        }),
+      )
   )
 })
