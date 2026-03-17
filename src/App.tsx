@@ -11,15 +11,18 @@ import {
 import { type WorkStatus, type WorkStatusInput } from './types'
 import './App.css'
 
-const currentUser =
-  localStorage.getItem('work-status-user') ||
-  (typeof prompt === 'function'
-    ? prompt('שם לעדכון סטטוס:')?.trim() || 'משתמש'
-    : 'משתמש')
+const resolveInitialUser = () => {
+  const stored = localStorage.getItem('work-status-user')?.trim()
+  if (stored) return stored
 
-localStorage.setItem('work-status-user', currentUser)
+  if (typeof prompt === 'function') {
+    return prompt('שם לעדכון סטטוס:')?.trim() || 'משתמש'
+  }
 
-const initialForm: WorkStatusInput = {
+  return 'משתמש'
+}
+
+const createInitialForm = (currentUser: string): WorkStatusInput => ({
   projectName: '',
   subProjectName: '',
   topic: '',
@@ -38,7 +41,7 @@ const initialForm: WorkStatusInput = {
   projectEta: '',
   comments: '',
   updatedBy: currentUser,
-}
+})
 
 const DAY_MS = 1000 * 60 * 60 * 24
 
@@ -50,26 +53,69 @@ const parseDateValue = (value: string) => {
 
 const formatDateLabel = (value: string) => value || 'לא הוגדר'
 
+const deriveHealthStatus = (item: WorkStatus) => {
+  const now = Date.now()
+  const nextStepAt = parseDateValue(item.nextStepAt)
+  const trialDate = parseDateValue(item.trialDate)
+  const trialWindow = now + DAY_MS * 14
+
+  if (
+    item.riskLevel === 'red' ||
+    item.blockers.trim().length > 0 ||
+    (nextStepAt !== null && nextStepAt < now) ||
+    (trialDate !== null && trialDate < now)
+  ) {
+    return { tone: 'critical', label: 'דורש טיפול' }
+  }
+
+  if (
+    item.riskLevel === 'yellow' ||
+    (trialDate !== null && trialDate <= trialWindow) ||
+    item.priority === 'high'
+  ) {
+    return { tone: 'watch', label: 'במעקב' }
+  }
+
+  return { tone: 'good', label: 'תקין' }
+}
+
 function App() {
+  const [currentUser, setCurrentUser] = useState(resolveInitialUser)
   const [items, setItems] = useState<WorkStatus[]>([])
-  const [form, setForm] = useState<WorkStatusInput>(initialForm)
+  const [form, setForm] = useState<WorkStatusInput>(() => createInitialForm(currentUser))
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [openProject, setOpenProject] = useState<string | null>(null)
   const [openSubProjectKey, setOpenSubProjectKey] = useState<string | null>(null)
+  const [selectedUser, setSelectedUser] = useState<string>('all')
 
   useEffect(() => {
     return subscribeStatuses(setItems)
   }, [])
 
+  useEffect(() => {
+    localStorage.setItem('work-status-user', currentUser)
+    setForm((prev) => ({ ...prev, updatedBy: currentUser }))
+  }, [currentUser])
+
+  const visibleItems = useMemo(() => {
+    if (selectedUser === 'all') return items
+    return items.filter((item) => item.updatedBy === selectedUser)
+  }, [items, selectedUser])
+
+  const userOptions = useMemo(
+    () => [...new Set(items.map((item) => item.updatedBy).filter(Boolean))].sort(),
+    [items],
+  )
+
   const groupedByProject = useMemo(() => {
-    return items.reduce<Record<string, WorkStatus[]>>((acc, item) => {
+    return visibleItems.reduce<Record<string, WorkStatus[]>>((acc, item) => {
       if (!acc[item.projectName]) acc[item.projectName] = []
       acc[item.projectName].push(item)
       return acc
     }, {})
-  }, [items])
+  }, [visibleItems])
 
   const projectSummary = useMemo(() => {
     const projects = Object.entries(groupedByProject)
@@ -102,25 +148,30 @@ function App() {
     const now = Date.now()
     const inTwoWeeks = now + DAY_MS * 14
 
-    const overdueNextSteps = items.filter((item) => {
+    const overdueNextSteps = visibleItems.filter((item) => {
       const timestamp = parseDateValue(item.nextStepAt)
       return timestamp !== null && timestamp < now
     }).length
 
-    const upcomingTrials = items.filter((item) => {
+    const upcomingTrials = visibleItems.filter((item) => {
       const timestamp = parseDateValue(item.trialDate)
       return timestamp !== null && timestamp >= now && timestamp <= inTwoWeeks
     }).length
 
-    const openRisks = items.filter(
+    const openRisks = visibleItems.filter(
       (item) => item.riskLevel === 'red' || item.blockers.trim().length > 0,
     ).length
 
-    const activePreparation = items.filter((item) => {
+    const activePreparation = visibleItems.filter((item) => {
       const start = parseDateValue(item.trialPrepStart)
       const end = parseDateValue(item.trialPrepEnd)
       if (start === null || end === null) return false
       return start <= now && end >= now
+    }).length
+
+    const delayedTrials = visibleItems.filter((item) => {
+      const trialDate = parseDateValue(item.trialDate)
+      return trialDate !== null && trialDate < now
     }).length
 
     return [
@@ -128,8 +179,9 @@ function App() {
       { label: 'ניסויים ב-14 יום', value: upcomingTrials },
       { label: 'חסמים/סיכון גבוה', value: openRisks },
       { label: 'בהכנה לניסוי', value: activePreparation },
+      { label: 'ניסויים שעבר זמנם', value: delayedTrials },
     ]
-  }, [items])
+  }, [visibleItems])
 
   const projectRows = useMemo(() => {
     return Object.entries(groupedByProject)
@@ -148,6 +200,10 @@ function App() {
               subRecords.reduce((sum, row) => sum + row.progress, 0) / subRecords.length,
             ),
             lastUpdated: Math.max(...subRecords.map((row) => row.updatedAt)),
+            owners: [...new Set(subRecords.map((row) => row.updatedBy))],
+            health: deriveHealthStatus(
+              [...subRecords].sort((a, b) => b.updatedAt - a.updatedAt)[0],
+            ),
           }))
           .sort((a, b) => b.lastUpdated - a.lastUpdated)
 
@@ -170,11 +226,18 @@ function App() {
 
     try {
       await upsertStatus(form, editingId ?? undefined)
-      setForm({ ...initialForm, updatedBy: currentUser })
+      setForm(createInitialForm(currentUser))
       setEditingId(null)
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const switchUser = () => {
+    const nextUser = window.prompt('בחר משתמש חדש:', currentUser)?.trim()
+    if (!nextUser) return
+    setCurrentUser(nextUser)
+    setEditingId(null)
   }
 
   const startEdit = (item: WorkStatus) => {
@@ -290,7 +353,7 @@ function App() {
 
   const cancelEdit = () => {
     setEditingId(null)
-    setForm({ ...initialForm, updatedBy: currentUser })
+    setForm(createInitialForm(currentUser))
   }
 
   const updateField = <K extends keyof WorkStatusInput>(
@@ -310,9 +373,17 @@ function App() {
             <p className="sync-help">{realtimeDisabledReason}</p>
           )}
         </div>
-        <span className={`sync ${isRealtimeEnabled ? 'live' : 'local'}`}>
-          {isRealtimeEnabled ? 'סנכרון LIVE' : 'מצב מקומי בלבד'}
-        </span>
+        <div className="topbar-tools">
+          <div className="user-strip">
+            <span className="user-badge">משתמש פעיל: {currentUser}</span>
+            <button type="button" className="secondary-btn" onClick={switchUser}>
+              החלפת משתמש
+            </button>
+          </div>
+          <span className={`sync ${isRealtimeEnabled ? 'live' : 'local'}`}>
+            {isRealtimeEnabled ? 'סנכרון LIVE' : 'מצב מקומי בלבד'}
+          </span>
+        </div>
       </header>
 
       <main className="layout">
@@ -491,6 +562,22 @@ function App() {
 
         <section className="panel">
           <h2>מדדי מעקב</h2>
+          <div className="panel-toolbar">
+            <label className="filter-label">
+              צפייה לפי עובד
+              <select
+                value={selectedUser}
+                onChange={(e) => setSelectedUser(e.target.value)}
+              >
+                <option value="all">כל העובדים</option>
+                {userOptions.map((user) => (
+                  <option key={user} value={user}>
+                    {user}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
           <div className="summary-grid metrics-grid">
             {portfolioMetrics.map((metric) => (
               <article key={metric.label} className="summary-card metric-card">
@@ -574,11 +661,16 @@ function App() {
                                         toggleSubProject(project.name, subProject.subProjectName)
                                       }
                                     >
-                                      <span>
+                                      <span className="subproject-main">
                                         {isSubOpen ? '▼' : '▶'} {subProject.subProjectName}
                                       </span>
-                                      <span>
-                                        {subProject.records.length} עדכונים | {subProject.avgProgress}%
+                                      <span className="subproject-meta">
+                                        <span>{subProject.records.length} עדכונים</span>
+                                        <span>{subProject.avgProgress}% ביצוע</span>
+                                        <span>{subProject.owners.join(', ')}</span>
+                                        <span className={`chip health-${subProject.health.tone}`}>
+                                          {subProject.health.label}
+                                        </span>
                                       </span>
                                     </button>
 
@@ -614,6 +706,9 @@ function App() {
                                               </span>
                                               <span className={`chip risk-${item.riskLevel}`}>
                                                 סיכון: {item.riskLevel === 'red' ? 'אדום' : item.riskLevel === 'yellow' ? 'צהוב' : 'ירוק'}
+                                              </span>
+                                              <span className={`chip health-${deriveHealthStatus(item).tone}`}>
+                                                {deriveHealthStatus(item).label}
                                               </span>
                                             </div>
                                             <div className="progress">
@@ -696,6 +791,7 @@ function App() {
                 })}
               </tbody>
             </table>
+            {projectRows.length === 0 && <p className="empty-state">אין נתונים לתצוגה עבור הסינון הנוכחי.</p>}
           </div>
         </section>
       </main>
