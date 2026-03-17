@@ -289,3 +289,24 @@ export const deleteProject = async (projectName: string) => {
   }
 }
 
+export const deleteSubProject = async (projectName: string, subProjectName: string) => {
+  const current = readLocal()
+  const next = current.filter(
+    (item) =>
+      !(item.projectName === projectName && item.subProjectName === subProjectName),
+  )
+  saveLocal(next)
+
+  if (!supabase) return
+
+  const { error } = await supabase
+    .from('work_statuses')
+    .delete()
+    .eq('project_name', projectName)
+    .eq('sub_project_name', subProjectName)
+
+  if (error) {
+    console.error('Supabase delete sub-project failed', error.message)
+  }
+}
+

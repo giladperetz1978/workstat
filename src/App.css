@@ -208,6 +208,12 @@
   gap: 0.7rem;
 }
 
+.subproject-actions {
+  margin-top: 0.45rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
 .status-actions {
   display: flex;
   align-items: center;

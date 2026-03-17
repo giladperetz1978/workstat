@@ -1,6 +1,7 @@
 ﻿import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
   deleteProject,
+  deleteSubProject,
   deleteStatus,
   isRealtimeEnabled,
   realtimeDisabledReason,
@@ -179,6 +180,34 @@ function App() {
     try {
       await deleteStatus(item.id)
       if (editingId === item.id) {
+        cancelEdit()
+      }
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  const removeSubProject = async (projectName: string, subProjectName: string) => {
+    const approved = window.confirm(
+      `למחוק את כל העדכונים של תת-הפרויקט "${subProjectName}" בפרויקט "${projectName}"?`,
+    )
+    if (!approved) return
+
+    setIsDeleting(true)
+    try {
+      await deleteSubProject(projectName, subProjectName)
+      const key = `${projectName}__${subProjectName}`
+      setOpenSubProjectKey((prev) => (prev === key ? null : prev))
+
+      if (
+        editingId &&
+        items.some(
+          (item) =>
+            item.id === editingId &&
+            item.projectName === projectName &&
+            item.subProjectName === subProjectName,
+        )
+      ) {
         cancelEdit()
       }
     } finally {
@@ -399,6 +428,22 @@ function App() {
                                         {subProject.records.length} עדכונים | {subProject.avgProgress}%
                                       </span>
                                     </button>
+
+                                    <div className="subproject-actions">
+                                      <button
+                                        type="button"
+                                        className="danger-btn"
+                                        disabled={isDeleting}
+                                        onClick={() =>
+                                          removeSubProject(
+                                            project.name,
+                                            subProject.subProjectName,
+                                          )
+                                        }
+                                      >
+                                        מחיקת תת-פרויקט
+                                      </button>
+                                    </div>
 
                                     {isSubOpen && (
                                       <div className="feed">
