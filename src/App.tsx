@@ -158,6 +158,7 @@ function App() {
 
     setIsDeleting(true)
     try {
+      setItems((prev) => prev.filter((item) => item.projectName !== projectName))
       await deleteProject(projectName)
       setOpenProject((prev) => (prev === projectName ? null : prev))
       setOpenSubProjectKey(null)
@@ -178,6 +179,7 @@ function App() {
 
     setIsDeleting(true)
     try {
+      setItems((prev) => prev.filter((row) => row.id !== item.id))
       await deleteStatus(item.id)
       if (editingId === item.id) {
         cancelEdit()
@@ -195,6 +197,12 @@ function App() {
 
     setIsDeleting(true)
     try {
+      setItems((prev) =>
+        prev.filter(
+          (item) =>
+            !(item.projectName === projectName && item.subProjectName === subProjectName),
+        ),
+      )
       await deleteSubProject(projectName, subProjectName)
       const key = `${projectName}__${subProjectName}`
       setOpenSubProjectKey((prev) => (prev === key ? null : prev))

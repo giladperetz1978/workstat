@@ -152,7 +152,7 @@ const readLocal = (): WorkStatus[] => {
     }
 
     const parsed = JSON.parse(raw) as WorkStatus[]
-    if (!Array.isArray(parsed) || parsed.length === 0) {
+    if (!Array.isArray(parsed)) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultSeed))
       return defaultSeed
     }
@@ -195,7 +195,7 @@ export const subscribeStatuses = (onData: (items: WorkStatus[]) => void) => {
       .select('*')
       .order('updated_at', { ascending: false })
 
-    if (error || !data || data.length === 0) {
+    if (error || !data) {
       onData(readLocal())
       return
     }
