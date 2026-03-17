@@ -48,7 +48,7 @@ jobs:
         run: npm run build:gh
 
       - name: Upload pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifact_name.outputs.value }}
           path: ./dist
