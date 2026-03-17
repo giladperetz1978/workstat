@@ -4,14 +4,25 @@ import { type WorkStatus, type WorkStatusInput } from './types'
 
 const STORAGE_KEY = 'work-status-pwa-cache-v1'
 
+const firebaseDefaults: FirebaseOptions = {
+  apiKey: '[REDACTED_API_KEY]',
+  authDomain: 'field-testing---gilad.firebaseapp.com',
+  projectId: 'field-testing---gilad',
+  storageBucket: 'field-testing---gilad.firebasestorage.app',
+  messagingSenderId: '70729011852',
+  appId: '1:70729011852:web:5688c8f29f281af78ba1a9',
+  databaseURL: 'https://field-testing---gilad-default-rtdb.firebaseio.com',
+}
+
 const firebaseConfig: FirebaseOptions = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseDefaults.apiKey,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || firebaseDefaults.authDomain,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || firebaseDefaults.projectId,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || firebaseDefaults.storageBucket,
+  messagingSenderId:
+    import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || firebaseDefaults.messagingSenderId,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || firebaseDefaults.appId,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || firebaseDefaults.databaseURL,
 }
 
 const requiredEnvKeys = [
@@ -27,7 +38,9 @@ const hasFirebaseConfig = Boolean(
 )
 
 export const realtimeDisabledReason =
-  missingEnvKeys.length > 0 ? `חסרים משתני סביבה: ${missingEnvKeys.join(', ')}` : ''
+  missingEnvKeys.length > 0
+    ? `חסרים משתני סביבה: ${missingEnvKeys.join(', ')} (נעשה שימוש בערכי Firebase מובנים)`
+    : ''
 
 const defaultSeed: WorkStatus[] = [
   {
