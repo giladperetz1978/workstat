@@ -17,9 +17,15 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      artifact_name: ${{ steps.artifact_name.outputs.value }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Compute artifact name
+        id: artifact_name
+        run: echo "value=workstat-pages-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -44,7 +50,7 @@ jobs:
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          name: workstat-pages
+          name: ${{ steps.artifact_name.outputs.value }}
           path: ./dist
 
   deploy:
@@ -58,5 +64,5 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
         with:
-          artifact_name: workstat-pages
+          artifact_name: ${{ needs.build.outputs.artifact_name }}
 
