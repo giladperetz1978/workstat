@@ -17,15 +17,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      artifact_name: ${{ steps.artifact_name.outputs.value }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Compute artifact name
-        id: artifact_name
-        run: echo "value=workstat-pages-${{ github.run_id }}-${{ github.run_attempt }}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -47,11 +41,19 @@ jobs:
           VITE_FIREBASE_DATABASE_URL: ${{ secrets.VITE_FIREBASE_DATABASE_URL }}
         run: npm run build:gh
 
+      - name: Clean up old github-pages artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api repos/${{ github.repository }}/actions/artifacts \
+            --jq '.artifacts[] | select(.name == "github-pages") | .id' \
+            -p per_page=100 | \
+            xargs -r -I {} gh api repos/${{ github.repository }}/actions/artifacts/{} -X DELETE || true
+
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
-          name: ${{ steps.artifact_name.outputs.value }}
 
   deploy:
     environment:
@@ -63,6 +65,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          artifact_name: ${{ needs.build.outputs.artifact_name }}
 
